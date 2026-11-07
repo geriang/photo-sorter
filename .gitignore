@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Private data: thumbnails, VLM output, labels and manifests describe your photos
+data/*
+!data/**/.gitkeep
+output/*
+!output/**/.gitkeep
+
+config/config.toml

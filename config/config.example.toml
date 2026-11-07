@@ -1,0 +1,22 @@
+# Copy to config.toml and edit. config.toml is git-ignored.
+
+[paths]
+source = "/path/to/your/photos"        # read-only, originals are never modified
+sorted_output = "./output/Sorted"      # organized copies go here
+skip_dirs = []                         # subfolders to ignore
+
+[model]
+runtime = "ollama"
+endpoint = "http://localhost:11434"
+name = "qwen2.5vl:32b"                 # confirm the exact tag with `ollama list`
+compare_with = "qwen2.5vl:7b"          # used by the Milestone 1 benchmark
+image_max_px = 1024
+
+[scoring]
+keep_above = 0.7
+toss_below = 0.3
+
+[safety]
+dry_run = true
+mode = "copy"
+toss_quarantine_days = 30
