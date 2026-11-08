@@ -26,3 +26,5 @@ src/photosorter/
 ```
 
 Milestone 1 starts with `ingest/`, `signals/`, `vlm/` and `db/`.
+
+Agent test
