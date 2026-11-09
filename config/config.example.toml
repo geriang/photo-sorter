@@ -20,3 +20,10 @@ toss_below = 0.3
 dry_run = true
 mode = "copy"
 toss_quarantine_days = 30
+
+[immich]
+export_dir = "./output/Sorted/Immich"  # Immich reads this as a read-only external library
+include_types = ["people"]
+include_values = ["keep"]
+undated_policy = "undated_folder"      # photos with no usable date go to Undated/
+write_exif_for_undated = true          # written to the copy only, never the original
