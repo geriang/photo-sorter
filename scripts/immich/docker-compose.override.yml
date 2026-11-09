@@ -1,0 +1,28 @@
+# Use together with Immich's own docker-compose.yml (release 3.3.6 or later):
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml up -d            # ML off (default)
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml --profile ml-hardened up -d
+# See docs/immich.md for the one-off model pre-seed step and the checklist.
+
+services:
+  immich-server:
+    volumes:
+      # Photo Sorter's export folder, read-only. Immich cannot modify or delete it.
+      - ${PEOPLE_LIBRARY_PATH:?set PEOPLE_LIBRARY_PATH in .env}:/external/people:ro
+    networks:
+      - default
+      - ml_internal
+
+  immich-machine-learning:
+    # Not started unless you pass --profile ml-hardened.
+    profiles: ["ml-hardened"]
+    networks:
+      - ml_internal
+    environment:
+      ORT_DISABLE_TELEMETRY: "1"
+      HF_HUB_OFFLINE: "1"
+      MACHINE_LEARNING_MODEL_REVISION: v2
+
+networks:
+  # internal: true means containers on this network have no route to the internet.
+  ml_internal:
+    internal: true
