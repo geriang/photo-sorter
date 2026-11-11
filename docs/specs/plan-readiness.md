@@ -79,7 +79,7 @@ Edge cases to cover: an item that fails on the first or the last position, a for
   - Milestone 8 "done when" marked as a manual check.
 
   Verify: `git diff main -- PLAN.md` shows only these changes. Serves AC7.
-- [ ] 8. Run the full suite, check `git status` and `git diff origin/main...HEAD`, then open the PR with the reviewer's findings. Verify: the AC1 command shows 34 passed, and only the files above changed. Serves AC1 to AC7. AC8 is handed to the user in the PR body.
+- [x] 8. Run the full suite, check `git status` and `git diff origin/main...HEAD`, then open the PR with the reviewer's findings. Verify: the AC1 command shows 34 passed, and only the files above changed. Serves AC1 to AC7. AC8 is handed to the user in the PR body.
 
 ## Test plan
 - Automated: the full pytest suite (34 tests: 33 existing plus the new originals-unchanged test). All fixtures use generated images in `tmp_path`, so no real photos are used.
@@ -118,3 +118,17 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - Task 5b: `test_originals_unchanged_after_apply_and_undo` passes; it fails when export is temporarily mutated to write into the source (mutation not committed).
 - Task 6: `docs/immich.md` (faces step, model-revision note, Not tested) and override edited. `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing; `tests/test_check_lockdown.py` 3 passed.
 - Task 7: `PLAN.md` edited. `git diff main -- PLAN.md` cannot show only the edits, because `PLAN.md` is new on this branch (absent on `main`); checked with `git diff HEAD -- PLAN.md` before the commit instead. Only the listed changes are present.
+- Task 8: full suite 34 passed; `git status` clean; `git diff origin/main...HEAD` shows only the intended files plus `docs/specs/roadmap.md` and `tests/conftest.py` (see Deviations). Reviewer ran (first three attempts failed with ECONNRESET, the fourth worked). It could not run pytest itself. Fixed its two small points (`faces` wording and a friendly error without InsightFace), commit "faces: clearer output...". Not changed: a hard-crash (SIGKILL) mid-copy can leave a truncated file with a committed manifest row; `undo` still removes it, and it is noted in the PR.
+
+### Acceptance criteria evidence
+| Criterion | Status | Evidence |
+|---|---|---|
+| AC1 | Met | `PYTHONPATH=/tmp/opencode/deps:src python3 -m pytest -q -p no:cacheprovider`: 34 passed, 0 failed. No test deleted or skipped. |
+| AC2 | Met | `pytest tests/test_regressions.py -k "cli_workflow or refuses"`: 2 passed. |
+| AC3 | Met | `-k failed_export`: passed (part of the 34). |
+| AC4 | Met | `-k "foreign or case"`: passed. |
+| AC5 | Met | `-k undo`: 5 passed. |
+| AC5b | Met | `test_originals_unchanged_after_apply_and_undo` passes, and fails when export is temporarily mutated to write into the source. |
+| AC6 | Met | `-k rescan`: passed. |
+| AC7 | Met | `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing (exit 1). `docs/immich.md` lists `photosorter faces`, explains the removal, and has an updated "Not tested". `PLAN.md` has a status table and measurable success criteria. |
+| AC8 | Manual (user) | Needs the Mac Studio, Immich and Docker. Not run here. |
