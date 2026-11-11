@@ -62,7 +62,12 @@ def main(argv: list[str] | None = None) -> int:
         paths = config["paths"]
         print(f"scanned {scan(conn, Path(paths['source']), paths.get('skip_dirs', []))} images")
     elif args.command == "faces":
-        print(f"detected faces in {detect_people(conn, load_detector())} new photos")
+        try:
+            detector = load_detector()
+        except ImportError:
+            print("error: InsightFace is not installed. Run `pip install .[faces]` first.", file=sys.stderr)
+            return 1
+        print(f"checked {detect_people(conn, detector)} photos for people")
     elif args.command == "score":
         pending = conn.execute("SELECT COUNT(*) FROM photos WHERE has_people IS NULL").fetchone()[0]
         if pending:

@@ -113,7 +113,7 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - Task 1: baseline confirmed with the AC1 command: `9 failed, 24 passed`. Commit: see `git log` ("Add spec and regression tests; record baseline").
 - Task 2: upsert in `scan.py`; `pytest -k rescan` 1 passed.
 - Task 3: `faces` command, `load_detector()` and `score` guard in `cli.py`; `-k "cli_workflow or refuses"` 2 passed, `tests/test_cli.py` 2 passed.
-- Task 4: `_Namer`, exclusive create, manifest-first commit and cleanup in `routing/immich.py`, plus the stub fix above. `-k "failed_export or foreign or case"` and `tests/test_immich_export.py` pass (see below).
+- Task 4: `_Namer`, exclusive create, manifest-first commit and cleanup in `routing/immich.py`, plus the stub fix above. `-k "failed_export or foreign or case"` and `tests/test_immich_export.py` pass: `-k "failed_export or foreign or case"` 4 passed, `tests/test_immich_export.py` 11 passed.
 - Task 5: two-phase `undo_last` (validates every row, refuses symlinks and originals, marks undone last). `-k undo` 5 passed. Tasks 4 and 5 were written together in one file and share one commit.
 - Task 5b: `test_originals_unchanged_after_apply_and_undo` passes; it fails when export is temporarily mutated to write into the source (mutation not committed).
 - Task 6: `docs/immich.md` (faces step, model-revision note, Not tested) and override edited. `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing; `tests/test_check_lockdown.py` 3 passed.
