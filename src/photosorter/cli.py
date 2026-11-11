@@ -1,8 +1,10 @@
 import argparse
+import sys
 import tomllib
 from pathlib import Path
 
 from photosorter.db.schema import connect
+from photosorter.faces.detector import detect_people
 from photosorter.ingest.scan import scan
 from photosorter.routing import immich
 from photosorter.scoring.default import apply_default_scoring
@@ -13,6 +15,13 @@ DEFAULT_DB = "data/db/photosorter.sqlite"
 def _load_config(path: str) -> dict:
     with open(path, "rb") as f:
         return tomllib.load(f)
+
+
+def load_detector():
+    """Build the face detector. Imported lazily so InsightFace is only needed for `faces`."""
+    from photosorter.faces.detector import InsightFaceDetector
+
+    return InsightFaceDetector()
 
 
 def _print_report(report: immich.Report, dry_run: bool) -> None:
@@ -33,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("scan", help="hash and record every image under paths.source")
+    sub.add_parser("faces", help="detect people in scanned photos (needs the `faces` extra)")
     sub.add_parser("score", help="apply default scoring (placeholder until Milestone 4)")
 
     apply_p = sub.add_parser("apply", help="copy photos to an output target")
@@ -51,7 +61,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "scan":
         paths = config["paths"]
         print(f"scanned {scan(conn, Path(paths['source']), paths.get('skip_dirs', []))} images")
+    elif args.command == "faces":
+        print(f"detected faces in {detect_people(conn, load_detector())} new photos")
     elif args.command == "score":
+        pending = conn.execute("SELECT COUNT(*) FROM photos WHERE has_people IS NULL").fetchone()[0]
+        if pending:
+            print(
+                f"error: {pending} photos have no face detection yet. Run `photosorter faces` before `score`.",
+                file=sys.stderr,
+            )
+            return 1
         scoring = config.get("scoring", {})
         n = apply_default_scoring(conn, scoring.get("keep_above", 0.7), scoring.get("toss_below", 0.3))
         print(f"scored {n} photos")
