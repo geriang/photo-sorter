@@ -65,7 +65,7 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 
 ## Tasks
 - [x] 1. Create the test environment and record the baseline (24 pass, 9 fail). Verify: the pytest command from AC1 shows `9 failed, 24 passed`. Serves AC1.
-- [ ] 2. Make `scan` keep earlier results. Verify: `pytest tests/test_regressions.py -k rescan` passes. Serves AC6.
+- [x] 2. Make `scan` keep earlier results. Verify: `pytest tests/test_regressions.py -k rescan` passes. Serves AC6.
 - [ ] 3. Add the `faces` command and the `score` guard. Verify: `pytest tests/test_regressions.py -k "cli_workflow or refuses"` and `pytest tests/test_cli.py` pass. Serves AC2.
 - [ ] 4. Make export crash-safe and non-overwriting, with case-insensitive collision handling. Verify: `pytest tests/test_regressions.py -k "failed_export or foreign or case"` and `tests/test_immich_export.py` pass. Serves AC3, AC4.
 - [ ] 5. Make undo two-phase and refuse originals. Verify: `pytest tests/test_regressions.py -k undo` passes. Serves AC5.
@@ -108,3 +108,4 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 
 ## Progress log
 - Task 1: baseline confirmed with the AC1 command: `9 failed, 24 passed`. Commit: see `git log` ("Add spec and regression tests; record baseline").
+- Task 2: upsert in `scan.py`; `pytest -k rescan` 1 passed.

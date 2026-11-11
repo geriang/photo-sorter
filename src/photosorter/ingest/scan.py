@@ -49,7 +49,9 @@ def scan(conn, root: Path, skip_dirs: list[str] | None = None) -> int:
     for path in iter_images(root, skip_dirs):
         stat = path.stat()
         conn.execute(
-            "INSERT OR REPLACE INTO photos (sha256, path, size, format, exif_date, mtime) VALUES (?,?,?,?,?,?)",
+            "INSERT INTO photos (sha256, path, size, format, exif_date, mtime) VALUES (?,?,?,?,?,?) "
+            "ON CONFLICT(sha256) DO UPDATE SET path=excluded.path, size=excluded.size, "
+            "format=excluded.format, exif_date=excluded.exif_date, mtime=excluded.mtime",
             (
                 sha256_file(path),
                 str(path),
