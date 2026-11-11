@@ -69,7 +69,7 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - [x] 3. Add the `faces` command and the `score` guard. Verify: `pytest tests/test_regressions.py -k "cli_workflow or refuses"` and `pytest tests/test_cli.py` pass. Serves AC2.
 - [x] 4. Make export crash-safe and non-overwriting, with case-insensitive collision handling. Verify: `pytest tests/test_regressions.py -k "failed_export or foreign or case"` and `tests/test_immich_export.py` pass. Serves AC3, AC4.
 - [x] 5. Make undo two-phase and refuse originals. Verify: `pytest tests/test_regressions.py -k undo` passes. Serves AC5.
-- [ ] 5b. Add the test that proves the originals are unchanged after apply and undo. Verify: `pytest tests/test_regressions.py -k originals_unchanged` passes. Serves AC5b.
+- [x] 5b. Add the test that proves the originals are unchanged after apply and undo. Verify: `pytest tests/test_regressions.py -k originals_unchanged` passes. Serves AC5b.
 - [ ] 6. Fix `docs/immich.md` and the override: add the `faces` step, remove `MACHINE_LEARNING_MODEL_REVISION`, add a note that `v2` is documented only for v3.4 release candidates and was not checked for 3.3.6, and keep the "Not tested" section accurate. Verify: `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing, and `pytest tests/test_check_lockdown.py` passes. Serves AC7.
 - [ ] 7. Update `PLAN.md` with only proven gaps:
   - a status column marking Milestone 8 as built early and Milestone 1 as not started;
@@ -115,3 +115,4 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - Task 3: `faces` command, `load_detector()` and `score` guard in `cli.py`; `-k "cli_workflow or refuses"` 2 passed, `tests/test_cli.py` 2 passed.
 - Task 4: `_Namer`, exclusive create, manifest-first commit and cleanup in `routing/immich.py`, plus the stub fix above. `-k "failed_export or foreign or case"` and `tests/test_immich_export.py` pass (see below).
 - Task 5: two-phase `undo_last` (validates every row, refuses symlinks and originals, marks undone last). `-k undo` 5 passed. Tasks 4 and 5 were written together in one file and share one commit.
+- Task 5b: `test_originals_unchanged_after_apply_and_undo` passes; it fails when export is temporarily mutated to write into the source (mutation not committed).

@@ -195,3 +195,29 @@ def test_undo_leaves_unrecorded_files_in_the_export_dir_alone(conn, library, tmp
     stray.write_text("mine")
     immich.undo_last(conn, out)
     assert stray.read_text() == "mine"
+
+
+# Roadmap rule: originals are never modified, by export or by undo
+def _snapshot(root: Path) -> dict[str, str]:
+    return {
+        str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+def test_originals_unchanged_after_apply_and_undo(library, tmp_path, monkeypatch):
+    # Undated copies get a date written into the copy, so this also covers that path.
+    out = tmp_path / "Immich"
+    base = write_config(tmp_path, library, out)
+    monkeypatch.setattr(cli, "load_detector", lambda: StubDetector(), raising=False)
+    before = _snapshot(library)
+
+    for command in (["scan"], ["faces"], ["score"], ["apply", "--target", "immich", "--yes"]):
+        assert main(base + command) == 0
+    assert [p for p in out.rglob("*.jpg")], "export wrote nothing, so the check proves nothing"
+    assert _snapshot(library) == before
+
+    assert main(base + ["undo", "--last-run"]) == 0
+    assert [p for p in out.rglob("*") if p.is_file()] == []
+    assert _snapshot(library) == before
