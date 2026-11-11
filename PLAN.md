@@ -14,6 +14,9 @@
 | Originals | Copy only | Originals are never moved or modified. Organized copies go in a separate output folder. |
 | Runtime | Ollama (not MLX or LM Studio) | The app calls Ollama's local HTTP API (`localhost:11434`). |
 | Disk space | Plenty free | Full copies are fine. No need for hard links. |
+| File types | Still photos only (JPEG, PNG, HEIC) | No video, RAW or Live Photo handling. |
+| Hardware | Mac Studio M5, 128 GB RAM (reported by the user, not checked) | Plenty for `qwen2.5vl:32b` (21 GB). |
+| Ollama models | `qwen2.5vl:32b` is pulled (21 GB). `qwen2.5vl:7b` is not | Run `ollama pull qwen2.5vl:7b` before the 32B vs 7B benchmark. The other pulled models (`nemotron-3-super:120b`, `qwen3.5:122b`, `gpt-oss:120b`, `qwen3.8:27b`, `qwen2.5:72b`) are not used by this plan, and I make no claim about whether they accept images. |
 
 ## Goal
 Scan the photo library, compute signals for each image, score how worth keeping it is, and route it to `Keep`, `Maybe` or `Toss`. Nothing is deleted automatically, and everything can be undone.
@@ -119,11 +122,24 @@ Python, SQLite, Pillow + pillow-heif, piexif, OpenCV, imagehash, InsightFace, Qw
 
 ## Build order
 
+Status as of this edit. The phase order and the per-phase checks are in `docs/specs/roadmap.md`.
+
+| Milestone | Status |
+|---|---|
+| 1. Signals and VLM benchmark | Not started. Only the scan and hashing parts exist, as part of Milestone 8. |
+| 2. Full VLM pass and context | Not started |
+| 3. People | Not started. A minimal `faces` command (face count only) was pulled forward for Milestone 8. |
+| 4. Default scoring and dry-run | Not started. A placeholder `score` was pulled forward for Milestone 8. |
+| 5. Calibration UI | Not started |
+| 6. Real routing | Not started |
+| 7. Feedback loop and polish | Not started |
+| 8. Immich export | Built early, on branch `agent/immich-export`. Automated tests pass. The "done when" check below is manual and has not been run. |
+
 ### Milestone 1: Signals and VLM benchmark (first deliverable)
 - Scaffold, SQLite schema, `scan` command.
 - Ingest + hashing, EXIF and filename source detection, HEIC support.
 - Blur, brightness, perceptual hash, duplicate groups.
-- VLM call with the JSON schema above, tested on 20 photos with both 32B and 7B for speed and accuracy.
+- VLM call with the JSON schema above, tested on 20 photos with both 32B and 7B for speed and accuracy. First run `ollama pull qwen2.5vl:7b`, because only the 32B is pulled.
 - Output: signals table plus an HTML contact sheet showing each photo and its signals.
 - **Done when:** the contact sheet looks right on 30 spot-checked photos and the VLM speed is known.
 
@@ -158,17 +174,14 @@ Python, SQLite, Pillow + pillow-heif, piexif, OpenCV, imagehash, InsightFace, Qw
 - Manifest, dry-run by default, `undo --last-run`.
 - `scripts/immich/`: compose override (ML off by default, opt-in hardened profile with no internet access and telemetry off) and `check_lockdown.py`.
 - Face detection (Milestone 3) and default scoring (Milestone 4) are pulled forward in minimal form. `score` is a placeholder.
-- **Done when:** about 50 photos show only people photos in Immich, the timeline matches the Year/Month folders, and no outbound connection is seen from the Immich ML container.
+- **Done when (manual check by the user, not yet run):** about 50 photos show only people photos in Immich, the timeline matches the Year/Month folders, and no outbound connection is seen from the Immich ML container.
 - See `docs/immich.md`.
 
 ## Success criteria
-- Fewer than 1 in 100 memories land in Toss.
-- The Maybe pile is under about 20% of the library after calibration.
-- The taste model agrees with held-out labels at least 80% of the time.
+Each one is measured on the user's real library, by a `report` command planned for Phase 17 of `docs/specs/roadmap.md`. The numbers come from the labels made in the Calibrate screen.
+- **Memories in Toss:** fewer than 1 in 100. Counted on the labeled set: of the photos the user labeled Keep, the share the app routed to Toss.
+- **Maybe pile:** under about 20% of the library after calibration. Counted as photos in Maybe divided by all photos.
+- **Taste model agreement:** at least 80% on about 20 held-out labels. Counted as held-out labels where the model's value equals the user's label.
 
 ## Remaining questions
-1. What is the path of the photo folder (on the local drive)? Are there subfolders to skip?
-2. Which Mac Studio chip and how much RAM? This decides whether the 32B runs comfortably.
-3. Which Ollama model tags are already pulled? Run `ollama list` to check.
-4. Are there videos, RAW files or Live Photo pairs in the folder, or only still images?
-5. Is Python 3.11+ installed, or should the project set up its own environment?
+1. What is the path of the photo folder (on the local drive)? Are there subfolders to skip? It goes in `paths.source` in the git-ignored `config/config.toml`.

@@ -71,7 +71,7 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - [x] 5. Make undo two-phase and refuse originals. Verify: `pytest tests/test_regressions.py -k undo` passes. Serves AC5.
 - [x] 5b. Add the test that proves the originals are unchanged after apply and undo. Verify: `pytest tests/test_regressions.py -k originals_unchanged` passes. Serves AC5b.
 - [x] 6. Fix `docs/immich.md` and the override: add the `faces` step, remove `MACHINE_LEARNING_MODEL_REVISION`, add a note that `v2` is documented only for v3.4 release candidates and was not checked for 3.3.6, and keep the "Not tested" section accurate. Verify: `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing, and `pytest tests/test_check_lockdown.py` passes. Serves AC7.
-- [ ] 7. Update `PLAN.md` with only proven gaps:
+- [x] 7. Update `PLAN.md` with only proven gaps:
   - a status column marking Milestone 8 as built early and Milestone 1 as not started;
   - the stills-only answer, the hardware (Mac Studio M5, 128 GB RAM) and the Ollama state, with those questions removed from "Remaining questions". Ollama state: `qwen2.5vl:32b` is pulled (21 GB), `qwen2.5vl:7b` is not, and the benchmark step must say to run `ollama pull qwen2.5vl:7b`. The other pulled models (`nemotron-3-super:120b`, `qwen3.5:122b`, `gpt-oss:120b`, `qwen3.8:27b`, `qwen2.5:72b`) are not used by the plan, and no claim is made about whether they accept images;
   - the one remaining open question, the photo folder path;
@@ -117,3 +117,4 @@ Edge cases to cover: an item that fails on the first or the last position, a for
 - Task 5: two-phase `undo_last` (validates every row, refuses symlinks and originals, marks undone last). `-k undo` 5 passed. Tasks 4 and 5 were written together in one file and share one commit.
 - Task 5b: `test_originals_unchanged_after_apply_and_undo` passes; it fails when export is temporarily mutated to write into the source (mutation not committed).
 - Task 6: `docs/immich.md` (faces step, model-revision note, Not tested) and override edited. `grep -n MODEL_REVISION scripts/immich/docker-compose.override.yml` finds nothing; `tests/test_check_lockdown.py` 3 passed.
+- Task 7: `PLAN.md` edited. `git diff main -- PLAN.md` cannot show only the edits, because `PLAN.md` is new on this branch (absent on `main`); checked with `git diff HEAD -- PLAN.md` before the commit instead. Only the listed changes are present.
