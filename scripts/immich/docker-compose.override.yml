@@ -20,7 +20,6 @@ services:
     environment:
       ORT_DISABLE_TELEMETRY: "1"
       HF_HUB_OFFLINE: "1"
-      MACHINE_LEARNING_MODEL_REVISION: v2
 
 networks:
   # internal: true means containers on this network have no route to the internet.
