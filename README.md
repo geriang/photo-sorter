@@ -2,7 +2,7 @@
 
 Local-only photo sorting. Scans a folder of photos, computes signals (EXIF, blur, duplicates, faces, Qwen2.5-VL output), scores each photo, and routes copies into `Keep`, `Maybe` or `Toss`. Originals are never modified.
 
-See `../PLAN.md` for the full plan.
+See `PLAN.md` for the full plan and `docs/immich.md` for the Immich export.
 
 ## Layout
 
@@ -20,7 +20,7 @@ src/photosorter/
   faces/              face detection, clustering, naming
   scoring/            keep score, type assignment, reason strings
   labeling/           calibration sampling, labels, taste model
-  routing/            dry-run, copy to Sorted/, manifest, undo, Toss quarantine
+  routing/            dry-run, copy to Sorted/, manifest, undo, Toss quarantine, Immich export
   db/                 SQLite schema and queries
   review/             local web UI (templates/, static/)
 ```
