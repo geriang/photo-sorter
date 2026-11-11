@@ -49,12 +49,63 @@ def _sql_in(values: list[str]) -> str:
 
 
 def _exported(conn) -> tuple[set[str], set[str]]:
-    """Return (exported source paths, exported target paths) for live Immich runs."""
+    """Return (exported source paths, exported target paths) for live Immich runs.
+
+    Only rows whose copy still exists count as exported, so a row left behind by a
+    crash does not hide a photo that was never written.
+    """
     rows = conn.execute(
         "SELECT m.target, m.source FROM manifest m JOIN runs r ON r.run_id = m.run_id "
         "WHERE r.target = 'immich' AND r.undone = 0 AND r.dry_run = 0"
     ).fetchall()
+    rows = [r for r in rows if Path(r["target"]).exists()]
     return {r["source"] for r in rows}, {r["target"] for r in rows}
+
+
+def _sidecar_path(target: Path) -> Path | None:
+    """The sidecar `_write_date` would create for this target, if any."""
+    if target.suffix.lower().lstrip(".") in EXIF_WRITABLE:
+        return None
+    return target.with_name(target.name + ".xmp")
+
+
+class _Namer:
+    """Picks target names that are free on disk and unique ignoring case."""
+
+    def __init__(self, exported_targets: set[str]):
+        self.taken = {t.casefold() for t in exported_targets}
+        self._listings: dict[Path, set[str]] = {}
+
+    def _on_disk(self, path: Path) -> bool:
+        folder = path.parent
+        if folder not in self._listings:
+            try:
+                self._listings[folder] = {p.name.casefold() for p in folder.iterdir()}
+            except (FileNotFoundError, NotADirectoryError):
+                self._listings[folder] = set()
+        return path.name.casefold() in self._listings[folder] or path.is_symlink()
+
+    def _free(self, path: Path) -> bool:
+        names = [path]
+        sidecar = _sidecar_path(path)
+        if sidecar is not None:
+            names.append(sidecar)
+        return all(str(n).casefold() not in self.taken and not self._on_disk(n) for n in names)
+
+    def claim(self, folder: Path, source: Path, sha256: str) -> Path:
+        stem, suffix = source.stem, source.suffix
+        candidates = [folder / source.name, folder / f"{stem}_{sha256[:8]}{suffix}", folder / f"{stem}_{sha256[:16]}{suffix}"]
+        n = 2
+        while True:
+            for target in candidates:
+                if self._free(target):
+                    self.taken.add(str(target).casefold())
+                    sidecar = _sidecar_path(target)
+                    if sidecar is not None:
+                        self.taken.add(str(sidecar).casefold())
+                    return target
+            candidates = [folder / f"{stem}_{sha256[:8]}_{n}{suffix}"]
+            n += 1
 
 
 def plan(conn, export_dir: Path, include_types: list[str], include_values: list[str]) -> Report:
@@ -65,19 +116,16 @@ def plan(conn, export_dir: Path, include_types: list[str], include_values: list[
         [*include_types, *include_values],
     ).fetchall()
     exported_sources, exported_targets = _exported(conn)
-    claimed: set[str] = set()
+    namer = _Namer(exported_targets)
     for row in rows:
         source = Path(row["path"])
         mtime = float(datetime.fromisoformat(row["mtime"]).replace(tzinfo=timezone.utc).timestamp()) if row["mtime"] else None
         dt, date_source = resolve_date(row["exif_date"], source.name, mtime)
         folder = export_dir / folder_for(dt)
-        target = folder / source.name
         if str(source) in exported_sources:
             report.skipped_existing += 1
             continue
-        if target.exists() or str(target) in claimed or str(target) in exported_targets:
-            target = folder / f"{source.stem}_{row['sha256'][:8]}{source.suffix}"
-        claimed.add(str(target))
+        target = namer.claim(folder, source, row["sha256"])
         report.planned.append(
             PlannedCopy(
                 sha256=row["sha256"],
@@ -120,7 +168,8 @@ def _write_date(target: Path, dt: datetime) -> str | None:
         piexif.insert(piexif.dump(exif), str(target))
         return None
     sidecar = target.with_name(target.name + ".xmp")
-    sidecar.write_text(_xmp(dt), encoding="utf-8")
+    with open(sidecar, "x", encoding="utf-8") as f:  # never overwrite an existing file
+        f.write(_xmp(dt))
     return str(sidecar)
 
 
@@ -142,31 +191,58 @@ def export(
         (datetime.now(timezone.utc).isoformat(),),
     )
     report.run_id = cur.lastrowid
+    conn.commit()  # the run must exist on disk before any file is written
     for item in report.planned:
-        item.target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(item.source, item.target)
-        sidecar = None
-        if item.date is not None and item.write_date and write_exif_for_undated:
-            sidecar = _write_date(item.target, item.date)
-        conn.execute(
-            "INSERT INTO manifest (run_id, source, target, sidecar, date_source, resolved, reason) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (
-                report.run_id,
-                str(item.source),
-                str(item.target),
-                sidecar,
-                item.date_source,
-                item.date.isoformat() if item.date else None,
-                item.reason,
-            ),
-        )
-    conn.commit()
+        _export_one(conn, report.run_id, item, write_exif_for_undated)
     return report
 
 
+def _export_one(conn, run_id: int, item: PlannedCopy, write_exif_for_undated: bool) -> None:
+    item.target.parent.mkdir(parents=True, exist_ok=True)
+    will_write_date = item.date is not None and item.write_date and write_exif_for_undated
+    sidecar = _sidecar_path(item.target) if will_write_date else None
+    sidecar_existed = sidecar is not None and sidecar.exists()
+    # Record the manifest row first and commit it, so any file that reaches the disk is covered.
+    cur = conn.execute(
+        "INSERT INTO manifest (run_id, source, target, sidecar, date_source, resolved, reason) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (
+            run_id,
+            str(item.source),
+            str(item.target),
+            str(sidecar) if sidecar is not None else None,
+            item.date_source,
+            item.date.isoformat() if item.date else None,
+            item.reason,
+        ),
+    )
+    row_id = cur.lastrowid
+    conn.commit()
+    created = False
+    try:
+        # "xb" fails instead of overwriting; `created` stays False if the file was not ours.
+        with open(item.source, "rb") as src, open(item.target, "xb") as dst:
+            created = True
+            shutil.copyfileobj(src, dst)
+        shutil.copystat(item.source, item.target)  # keep file times, as copy2 does
+        if will_write_date:
+            _write_date(item.target, item.date)
+    except BaseException:
+        if created and item.target.exists():
+            item.target.unlink()
+        if sidecar is not None and not sidecar_existed and sidecar.exists():
+            sidecar.unlink()
+        conn.execute("DELETE FROM manifest WHERE id = ?", (row_id,))
+        conn.commit()
+        raise
+
+
 def undo_last(conn, export_dir: Path) -> int:
-    """Remove copies and sidecars from the last Immich run. Never touches paths outside export_dir."""
+    """Remove copies and sidecars from the last Immich run.
+
+    Phase 1 checks every manifest row and raises ValueError before anything is deleted.
+    Phase 2 deletes and prunes empty folders. The run is marked undone only after phase 2.
+    """
     export_dir = Path(export_dir).resolve()
     run = conn.execute(
         "SELECT run_id FROM runs WHERE target = 'immich' AND dry_run = 0 AND undone = 0 "
@@ -174,22 +250,38 @@ def undo_last(conn, export_dir: Path) -> int:
     ).fetchone()
     if run is None:
         return 0
-    removed = 0
     rows = conn.execute("SELECT target, sidecar FROM manifest WHERE run_id = ?", (run["run_id"],)).fetchall()
+
+    originals = {
+        r[0] for r in conn.execute("SELECT source FROM manifest UNION SELECT path FROM photos")
+    }
+    original_paths = {Path(o).resolve() for o in originals}
+
+    to_delete: list[Path] = []
     for row in rows:
         for name in (row["target"], row["sidecar"]):
             if not name:
                 continue
-            path = Path(name).resolve()
+            raw = Path(name)
+            path = raw.parent.resolve() / raw.name  # resolve the folder, not the file itself
             if export_dir not in path.parents:
                 raise ValueError(f"refusing to delete outside export dir: {path}")
-            if path.exists():
-                path.unlink()
-                removed += 1
-            parent = path.parent
-            while parent != export_dir and parent.exists() and not any(parent.iterdir()):
-                parent.rmdir()
-                parent = parent.parent
+            if path.is_symlink():
+                raise ValueError(f"refusing to delete a symlink: {path}")
+            if path in original_paths:
+                raise ValueError(f"refusing to delete an original photo: {path}")
+            to_delete.append(path)
+
+    removed = 0
+    for path in to_delete:
+        if path.exists():
+            path.unlink()
+            removed += 1
+    for path in to_delete:
+        parent = path.parent
+        while parent != export_dir and parent.exists() and not any(parent.iterdir()):
+            parent.rmdir()
+            parent = parent.parent
     conn.execute("UPDATE runs SET undone = 1 WHERE run_id = ?", (run["run_id"],))
     conn.commit()
     return removed

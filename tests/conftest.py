@@ -24,10 +24,10 @@ def make_jpeg(path: Path, color=(120, 80, 40), exif_date: str | None = None, mti
 
 
 class StubDetector:
-    """Treats files whose name contains 'person' as having 2 people."""
+    """Treats files whose name contains "person" (any case) as having 2 people."""
 
     def count_people(self, path: Path) -> int:
-        return 2 if "person" in path.name else 0
+        return 2 if "person" in path.name.lower() else 0
 
 
 @pytest.fixture
