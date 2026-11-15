@@ -1,0 +1,13 @@
+# One-off model download. Gives the ML container internet access for a short time.
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.seed.yml \
+#     --profile ml-hardened up -d immich-machine-learning
+# Wait for the models to download, then stop it and start again WITHOUT this file.
+
+services:
+  immich-machine-learning:
+    networks:
+      - default
+    environment:
+      HF_HUB_OFFLINE: "0"
+      MACHINE_LEARNING_PRELOAD__FACIAL_RECOGNITION__DETECTION: buffalo_l
+      MACHINE_LEARNING_PRELOAD__FACIAL_RECOGNITION__RECOGNITION: buffalo_l
